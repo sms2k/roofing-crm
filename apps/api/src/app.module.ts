@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AIModule } from './modules/ai/ai.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { EmailModule } from './modules/email/email.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { EmailModule } from './modules/email/email.module';
     // Communication
     SmsModule,
     EmailModule,
+    NotificationsModule,
   ],
   providers: [
     {
