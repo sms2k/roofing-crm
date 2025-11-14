@@ -1,0 +1,541 @@
+// Phase 3 Database Schema Additions
+// Professional Features: Pricing, Claims, Integrations, Storm Tools, Canvassing
+
+// ==================== PRICING & CATALOG ====================
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  parentId    String?   // For nested categories
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent   ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryHierarchy")
+  products Product[]
+
+  @@index([tenantId])
+  @@index([parentId])
+  @@map("product_categories")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  tenantId     String
+  categoryId   String?
+  sku          String?  // Stock keeping unit
+  name         String
+  description  String?
+  manufacturer String?
+  model        String?
+  unit         String   @default("EACH") // EACH, SQ_FT, LINEAR_FT, BUNDLE, etc.
+
+  // Pricing
+  cost         Float?   // What you pay
+  retailPrice  Float?   // What customer pays
+  laborRate    Float?   // Labor cost per unit
+
+  // Images & Documents
+  images       Json[]   @default([]) // Array of image URLs
+  primaryImage String?
+  documents    Json[]   @default([]) // Spec sheets, warranties
+
+  // Specifications
+  specs        Json?    // Material specs, colors, etc.
+  warranty     String?
+
+  // Inventory (optional)
+  trackInventory Boolean @default(false)
+  quantityOnHand Int?
+  reorderPoint   Int?
+
+  isActive     Boolean  @default(true)
+  tags         String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category     ProductCategory? @relation(fields: [categoryId], references: [id])
+  estimateItems EstimateLineItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model EstimateLineItem {
+  id          String  @id @default(cuid())
+  estimateId  String
+  productId   String?
+  name        String  // Description
+  quantity    Float
+  unit        String
+  unitPrice   Float
+  laborCost   Float   @default(0)
+  materialCost Float  @default(0)
+  markup      Float   @default(0) // Percentage
+  discount    Float   @default(0) // Percentage
+  total       Float
+  sortOrder   Int     @default(0)
+  notes       String?
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id])
+
+  @@index([estimateId])
+  @@map("estimate_line_items")
+}
+
+// Update Estimate model to include line items relation
+// estimate: { lineItemsRelation: EstimateLineItem[] }
+
+model PricingTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  type        String   // REROOF, REPAIR, COMMERCIAL, etc.
+  lineItems   Json[]   // Template line items
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("pricing_templates")
+}
+
+// ==================== CLAIMS MANAGEMENT ====================
+
+model InsuranceClaim {
+  id                String    @id @default(cuid())
+  tenantId          String
+  jobId             String    @unique
+  claimNumber       String?
+  carrier           String?   // Insurance company
+  policyNumber      String?
+
+  // Adjuster information
+  adjusterName      String?
+  adjusterPhone     String?
+  adjusterEmail     String?
+
+  // Claim details
+  dateOfLoss        DateTime?
+  causeOfLoss       String?   // WIND, HAIL, STORM, etc.
+  claimType         String    @default("INSURANCE") // INSURANCE, WARRANTY, RETAIL
+
+  // Financials
+  rcv               Float?    // Replacement Cost Value
+  acv               Float?    // Actual Cash Value
+  deductible        Float?
+  depreciation      Float?
+  recoverable       Float?    // Depreciation holdback
+
+  // Supplements
+  initialAmount     Float?
+  supplementAmount  Float     @default(0)
+  totalApproved     Float?
+
+  // Status tracking
+  status            String    @default("FILED") // FILED, UNDER_REVIEW, APPROVED, SUPPLEMENT_NEEDED, DENIED, PAID
+  filedAt           DateTime?
+  approvedAt        DateTime?
+  deniedAt          DateTime?
+  paidAt            DateTime?
+
+  // Documents
+  xactimateFile     String?   // ESX file URL
+  scopeSheet        String?
+  photos            Json[]    @default([])
+  documents         Json[]    @default([])
+
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job         Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  supplements Supplement[]
+
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([status])
+  @@map("insurance_claims")
+}
+
+model Supplement {
+  id          String    @id @default(cuid())
+  claimId     String
+  number      Int       // Supplement #1, #2, etc.
+  description String
+  amount      Float
+  status      String    @default("PENDING") // PENDING, SUBMITTED, APPROVED, DENIED
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  documents   Json[]    @default([])
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  claim InsuranceClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@map("supplements")
+}
+
+// ==================== THIRD-PARTY INTEGRATIONS ====================
+
+model Integration {
+  id           String    @id @default(cuid())
+  tenantId     String
+  provider     String    // EAGLEVIEW, QUICKMEASURE, DEMANDIQ, ROOFLE, NOAA, etc.
+  name         String
+  isEnabled    Boolean   @default(false)
+
+  // API Credentials (encrypted in production)
+  apiKey       String?
+  apiSecret    String?
+  username     String?
+  password     String?
+
+  // Configuration
+  config       Json?     // Provider-specific settings
+
+  // Usage tracking
+  lastSyncAt   DateTime?
+  syncCount    Int       @default(0)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@map("integrations")
+}
+
+model MeasurementReport {
+  id             String    @id @default(cuid())
+  tenantId       String
+  propertyId     String
+  jobId          String?
+  provider       String    // EAGLEVIEW, QUICKMEASURE, HOVER, etc.
+  reportId       String?   // Provider's report ID
+
+  // Measurements
+  totalSquares   Float?
+  pitchPrimary   String?
+  facets         Json[]    @default([])
+  ridgeLength    Float?
+  valleyLength   Float?
+  rakeLength     Float?
+  eaveLength     Float?
+  hipLength      Float?
+
+  // Files
+  reportUrl      String?
+  pdfUrl         String?
+  xmlUrl         String?   // For import into estimating software
+  images         Json[]    @default([])
+
+  // Cost
+  cost           Float?
+  orderedAt      DateTime?
+  completedAt    DateTime?
+
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  job      Job?     @relation(fields: [jobId], references: [id])
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([jobId])
+  @@map("measurement_reports")
+}
+
+// ==================== STORM TRACKING ====================
+
+model StormReport {
+  id            String    @id @default(cuid())
+  tenantId      String
+  eventId       String?   // NOAA event ID
+  name          String?
+  type          String    // HAIL, WIND, TORNADO, HURRICANE
+  date          DateTime
+
+  // Location
+  latitude      Float
+  longitude     Float
+  radius        Float?    // Miles
+  affectedZips  String[]
+  affectedCities String[]
+
+  // Storm data
+  hailSize      Float?    // Inches
+  windSpeed     Int?      // MPH
+  tornadoRating String?   // EF0-EF5
+
+  // NOAA/NWS data
+  noaaEventId   String?
+  severity      String    // MINOR, MODERATE, MAJOR, SEVERE
+
+  // Marketing
+  isTargeted    Boolean   @default(false)
+  campaignId    String?
+
+  notes         String?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hailReports   HailReport[]
+  stormLeads    Lead[]        @relation("StormLeads")
+
+  @@index([tenantId])
+  @@index([date])
+  @@index([latitude, longitude])
+  @@map("storm_reports")
+}
+
+model HailReport {
+  id          String      @id @default(cuid())
+  stormId     String
+  latitude    Float
+  longitude   Float
+  size        Float       // Inches
+  timestamp   DateTime
+  source      String      // NOAA, HAILTRACEDATA, USER_REPORTED
+  verified    Boolean     @default(false)
+  metadata    Json?
+
+  storm StormReport @relation(fields: [stormId], references: [id], onDelete: Cascade)
+
+  @@index([stormId])
+  @@index([latitude, longitude])
+  @@index([timestamp])
+  @@map("hail_reports")
+}
+
+model WeatherAlert {
+  id          String    @id @default(cuid())
+  tenantId    String
+  type        String    // SEVERE_THUNDERSTORM, TORNADO, HAIL, WIND
+  severity    String    // MINOR, MODERATE, SEVERE, EXTREME
+  headline    String
+  description String
+
+  // Location
+  affectedZips String[]
+  affectedCounties String[]
+
+  // Timing
+  startTime   DateTime
+  endTime     DateTime?
+
+  // NOAA data
+  noaaId      String?
+  urgency     String?   // IMMEDIATE, EXPECTED, FUTURE
+  certainty   String?   // OBSERVED, LIKELY, POSSIBLE
+
+  // Notification
+  notified    Boolean   @default(false)
+  notifiedAt  DateTime?
+
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([startTime])
+  @@index([notified])
+  @@map("weather_alerts")
+}
+
+// ==================== CANVASSING ====================
+
+model CanvassingArea {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+
+  // Geographic bounds
+  bounds      Json      // GeoJSON polygon
+  zipCodes    String[]
+
+  // Assignment
+  assignedTo  String[]  // User IDs
+
+  // Status
+  status      String    @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED
+  priority    String    @default("MEDIUM")  // LOW, MEDIUM, HIGH
+
+  // Stats
+  totalHouses Int       @default(0)
+  contacted   Int       @default(0)
+  interested  Int       @default(0)
+
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pins   CanvassingPin[]
+
+  @@index([tenantId])
+  @@map("canvassing_areas")
+}
+
+model CanvassingPin {
+  id           String    @id @default(cuid())
+  areaId       String?
+  tenantId     String
+
+  // Location
+  latitude     Float
+  longitude    Float
+  address      String?
+
+  // Status
+  status       String    // NOT_HOME, INTERESTED, NOT_INTERESTED, CALLBACK, DO_NOT_DISTURB
+  roofCondition String?  // GOOD, FAIR, POOR, DAMAGED
+
+  // Contact attempt
+  contactedAt  DateTime?
+  contactedBy  String?   // User ID
+
+  // Lead creation
+  leadCreated  Boolean   @default(false)
+  leadId       String?
+
+  // Data
+  notes        String?
+  photos       Json[]    @default([])
+
+  // Property lookup data (from public records/APIs)
+  ownerName    String?
+  ownerPhone   String?
+  ownerEmail   String?
+  propertyData Json?     // Age, value, etc.
+
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  area   CanvassingArea?  @relation(fields: [areaId], references: [id])
+  lead   Lead?            @relation(fields: [leadId], references: [id])
+
+  @@index([tenantId])
+  @@index([areaId])
+  @@index([latitude, longitude])
+  @@index([status])
+  @@map("canvassing_pins")
+}
+
+model PropertyLookup {
+  id            String    @id @default(cuid())
+  tenantId      String
+  address       String
+
+  // Lookup result
+  ownerName     String?
+  ownerPhone    String?
+  ownerEmail    String?
+  mailingAddress String?
+
+  // Property details
+  yearBuilt     Int?
+  squareFeet    Int?
+  propertyValue Float?
+  lastSaleDate  DateTime?
+  lastSalePrice Float?
+
+  // Source
+  source        String?   // MELISSA_DATA, PROPERTY_RADAR, etc.
+  confidence    Float?    // 0-1
+
+  // Cache
+  cachedData    Json?
+  expiresAt     DateTime?
+
+  createdAt     DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, address])
+  @@index([tenantId])
+  @@map("property_lookups")
+}
+
+// ==================== PROPOSAL BUILDER ====================
+
+model ProposalTemplate {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+
+  // Content sections
+  coverPage   Json?     // Title, logo, contact info
+  sections    Json[]    @default([]) // Intro, scope, timeline, warranty, etc.
+
+  // Styling
+  theme       Json?     // Colors, fonts, layout
+
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("proposal_templates")
+}
+
+// ==================== UPDATE EXISTING MODELS ====================
+
+// Add to Tenant model:
+// productCategories    ProductCategory[]
+// products             Product[]
+// pricingTemplates     PricingTemplate[]
+// insuranceClaims      InsuranceClaim[]
+// integrations         Integration[]
+// measurementReports   MeasurementReport[]
+// stormReports         StormReport[]
+// weatherAlerts        WeatherAlert[]
+// canvassingAreas      CanvassingArea[]
+// canvassingPins       CanvassingPin[]
+// propertyLookups      PropertyLookup[]
+// proposalTemplates    ProposalTemplate[]
+
+// Add to Job model:
+// claim                InsuranceClaim?
+// pricingType          String @default("RETAIL") // RETAIL, INSURANCE
+// measurementReports   MeasurementReport[]
+
+// Add to Lead model:
+// stormReport          StormReport? @relation("StormLeads", fields: [stormReportId], references: [id])
+// stormReportId        String?
+// canvassingPin        CanvassingPin?
+
+// Add to Property model:
+// measurementReports   MeasurementReport[]
+
+// Add to Estimate model:
+// lineItemsRelation    EstimateLineItem[]
