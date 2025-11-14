@@ -19,6 +19,7 @@ import { AIModule } from './modules/ai/ai.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { EmailModule } from './modules/email/email.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     SmsModule,
     EmailModule,
     NotificationsModule,
+    MessagingModule,
   ],
   providers: [
     {

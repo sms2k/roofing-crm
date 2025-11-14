@@ -41,7 +41,10 @@
     "zod": "^3.22.4",
     "openai": "^4.20.1",
     "twilio": "^5.0.0",
-    "@sendgrid/mail": "^8.1.0"
+    "@sendgrid/mail": "^8.1.0",
+    "@nestjs/websockets": "^10.2.10",
+    "@nestjs/platform-socket.io": "^10.2.10",
+    "socket.io": "^4.6.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.2.1",
