@@ -16,6 +16,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { HealthModule } from './modules/health/health.module';
 import { AIModule } from './modules/ai/ai.module';
+import { SmsModule } from './modules/sms/sms.module';
 
 @Module({
   imports: [
@@ -47,6 +48,9 @@ import { AIModule } from './modules/ai/ai.module';
 
     // AI & Advanced Features
     AIModule,
+
+    // Communication
+    SmsModule,
   ],
   providers: [
     {
