@@ -1,0 +1,755 @@
+// Prisma Schema for Roofing CRM
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== TENANT & USER MODELS ====================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  logo      String?
+  settings  Json     @default("{}")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users              User[]
+  leads              Lead[]
+  contacts           Contact[]
+  properties         Property[]
+  jobs               Job[]
+  tasks              Task[]
+  notes              Note[]
+  estimates          Estimate[]
+  contracts          Contract[]
+  workOrders         WorkOrder[]
+  invoices           Invoice[]
+  payments           Payment[]
+  auditLogs          AuditLog[]
+  automationRules    AutomationRule[]
+  stormEvents        StormEvent[]
+  crews              Crew[]
+  subcontractors     Subcontractor[]
+  vendors            Vendor[]
+  purchaseOrders     PurchaseOrder[]
+  aiActionLogs       AIActionLog[]
+
+  @@map("tenants")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  SALES_MANAGER
+  SALES_REP
+  ESTIMATOR
+  PRODUCTION_MANAGER
+  CREW_LEADER
+  CREW_MEMBER
+  OFFICE_MANAGER
+  BOOKKEEPER
+  SUBCONTRACTOR
+  CUSTOMER
+}
+
+model User {
+  id               String    @id @default(cuid())
+  tenantId         String
+  email            String
+  passwordHash     String
+  firstName        String
+  lastName         String
+  phone            String?
+  avatar           String?
+  role             UserRole
+  isActive         Boolean   @default(true)
+  lastLoginAt      DateTime?
+  emailVerified    Boolean   @default(false)
+  emailVerifiedAt  DateTime?
+  twoFactorEnabled Boolean   @default(false)
+  twoFactorSecret  String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedLeads         Lead[]            @relation("AssignedLeads")
+  assignedJobs          Job[]             @relation("AssignedJobs")
+  assignedTasks         Task[]            @relation("AssignedTasks")
+  createdNotes          Note[]
+  createdEstimates      Estimate[]
+  auditLogs             AuditLog[]
+  crewMemberships       CrewMember[]
+  createdAIActionLogs   AIActionLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+// ==================== CRM CORE MODELS ====================
+
+enum LeadSource {
+  STORM
+  REFERRAL
+  MARKETING
+  CANVASSING
+  WEBSITE
+  PHONE
+  SOCIAL_MEDIA
+  HOME_ADVISOR
+  ANGI
+  MODERNIZE
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id             String      @id @default(cuid())
+  tenantId       String
+  source         LeadSource
+  status         LeadStatus  @default(NEW)
+  score          Int         @default(0) // 0-100
+  contactId      String?
+  propertyId     String?
+  assignedToId   String?
+  stormEventId   String?
+  insuranceInfo  Json?
+  urgency        String      @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  tags           String[]
+  customFields   Json        @default("{}")
+  convertedAt    DateTime?
+  lostReason     String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact      Contact?     @relation(fields: [contactId], references: [id])
+  property     Property?    @relation(fields: [propertyId], references: [id])
+  assignedTo   User?        @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  stormEvent   StormEvent?  @relation(fields: [stormEventId], references: [id])
+  job          Job?
+  notes        Note[]
+  tasks        Task[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model Contact {
+  id               String   @id @default(cuid())
+  tenantId         String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  alternatePhone   String?
+  address          Json?
+  preferredContact String   @default("EMAIL") // EMAIL, PHONE, TEXT
+  tags             String[]
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads      Lead[]
+  jobs       Job[]
+  properties Property[]
+  notesList  Note[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([phone])
+  @@map("contacts")
+}
+
+enum RoofType {
+  ASPHALT_SHINGLE
+  METAL
+  TILE
+  SLATE
+  FLAT
+  TPO
+  EPDM
+  MODIFIED_BITUMEN
+  BUILT_UP
+  OTHER
+}
+
+model Property {
+  id           String    @id @default(cuid())
+  tenantId     String
+  address      Json
+  roofType     RoofType?
+  pitch        String?
+  squares      Float?
+  layers       Int?
+  age          Int?
+  condition    String? // EXCELLENT, GOOD, FAIR, POOR
+  hoaInfo      Json?
+  permitInfo   Json?
+  photos       Json[]
+  measurements Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads    Lead[]
+  jobs     Job[]
+  contacts Contact[]
+  notes    Note[]
+
+  @@index([tenantId])
+  @@map("properties")
+}
+
+enum JobStatus {
+  LEAD
+  QUALIFIED
+  INSPECTED
+  ESTIMATED
+  PROPOSED
+  NEGOTIATING
+  SOLD
+  SCHEDULED
+  IN_PRODUCTION
+  COMPLETED
+  INVOICED
+  PAID
+  CLOSED
+  LOST
+  CANCELLED
+}
+
+enum JobType {
+  RESIDENTIAL_REROOF
+  RESIDENTIAL_REPAIR
+  COMMERCIAL_REROOF
+  COMMERCIAL_REPAIR
+  INSURANCE_CLAIM
+  MAINTENANCE
+  WARRANTY
+  INSPECTION
+}
+
+model Job {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  jobNumber          String    @unique
+  type               JobType
+  status             JobStatus @default(LEAD)
+  contactId          String
+  propertyId         String
+  assignedToId       String?
+  leadId             String?   @unique
+  insuranceInfo      Json?
+  estimateId         String?
+  contractId         String?
+  scheduledStartDate DateTime?
+  scheduledEndDate   DateTime?
+  actualStartDate    DateTime?
+  actualEndDate      DateTime?
+  value              Float?
+  cost               Float?
+  margin             Float?
+  tags               String[]
+  customFields       Json      @default("{}")
+  lostReason         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact     Contact      @relation(fields: [contactId], references: [id])
+  property    Property     @relation(fields: [propertyId], references: [id])
+  assignedTo  User?        @relation("AssignedJobs", fields: [assignedToId], references: [id])
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  estimate    Estimate?    @relation(fields: [estimateId], references: [id])
+  contract    Contract?    @relation(fields: [contractId], references: [id])
+  tasks       Task[]
+  notes       Note[]
+  workOrders  WorkOrder[]
+  invoices    Invoice[]
+  dailyLogs   DailyLog[]
+  changeOrders ChangeOrder[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+// ==================== TASK & NOTE MODELS ====================
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  tenantId      String
+  title         String
+  description   String?
+  status        TaskStatus   @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+  assignedToId  String?
+  relatedToType String? // LEAD, JOB, CONTACT, PROPERTY
+  relatedToId   String?
+  dueDate       DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTo User?   @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  lead       Lead?   @relation(fields: [relatedToId], references: [id])
+  job        Job?    @relation(fields: [relatedToId], references: [id])
+
+  @@index([tenantId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model Note {
+  id            String   @id @default(cuid())
+  tenantId      String
+  content       String
+  relatedToType String // LEAD, JOB, CONTACT, PROPERTY
+  relatedToId   String
+  createdById   String
+  isPinned      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id])
+  lead      Lead?     @relation(fields: [relatedToId], references: [id])
+  job       Job?      @relation(fields: [relatedToId], references: [id])
+  contact   Contact?  @relation(fields: [relatedToId], references: [id])
+  property  Property? @relation(fields: [relatedToId], references: [id])
+
+  @@index([tenantId])
+  @@index([relatedToType, relatedToId])
+  @@index([createdAt])
+  @@map("notes")
+}
+
+// ==================== ESTIMATING & CONTRACT MODELS ====================
+
+model Estimate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  jobId       String?
+  createdById String
+  name        String
+  version     Int      @default(1)
+  lineItems   Json[]
+  subtotal    Float
+  tax         Float
+  total       Float
+  markup      Float    @default(0)
+  notes       String?
+  status      String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, DECLINED
+  validUntil  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+  jobs      Job[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("estimates")
+}
+
+model Contract {
+  id           String    @id @default(cuid())
+  tenantId     String
+  jobId        String?
+  contractHtml String
+  contractPdf  String?
+  signedAt     DateTime?
+  signedBy     String?
+  signature    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs   Job[]
+
+  @@index([tenantId])
+  @@map("contracts")
+}
+
+model ChangeOrder {
+  id          String   @id @default(cuid())
+  tenantId    String
+  jobId       String
+  description String
+  amount      Float
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
+  approvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("change_orders")
+}
+
+// ==================== PRODUCTION MODELS ====================
+
+model WorkOrder {
+  id                String    @id @default(cuid())
+  tenantId          String
+  jobId             String
+  workOrderNumber   String    @unique
+  crewId            String?
+  scheduledDate     DateTime?
+  completedDate     DateTime?
+  materialPullSheet Json?
+  status            String    @default("PENDING") // PENDING, SCHEDULED, IN_PROGRESS, COMPLETED
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job       Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew      Crew?      @relation(fields: [crewId], references: [id])
+  dailyLogs DailyLog[]
+
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model Crew {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members    CrewMember[]
+  workOrders WorkOrder[]
+
+  @@index([tenantId])
+  @@map("crews")
+}
+
+model CrewMember {
+  id        String   @id @default(cuid())
+  crewId    String
+  userId    String
+  role      String   @default("MEMBER") // LEADER, MEMBER
+  createdAt DateTime @default(now())
+
+  // Relations
+  crew Crew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([crewId, userId])
+  @@map("crew_members")
+}
+
+model DailyLog {
+  id            String    @id @default(cuid())
+  tenantId      String
+  jobId         String
+  workOrderId   String?
+  date          DateTime
+  startTime     DateTime?
+  endTime       DateTime?
+  crewSize      Int?
+  workCompleted String
+  materials     Json?
+  photos        Json[]
+  issues        String?
+  weatherDelay  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  job       Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([jobId])
+  @@index([date])
+  @@map("daily_logs")
+}
+
+model Subcontractor {
+  id           String   @id @default(cuid())
+  tenantId     String
+  companyName  String
+  contactName  String?
+  email        String?
+  phone        String?
+  address      Json?
+  specialties  String[]
+  rating       Float?
+  isActive     Boolean  @default(true)
+  insuranceExp DateTime?
+  licenseInfo  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("subcontractors")
+}
+
+// ==================== FINANCIAL MODELS ====================
+
+model Invoice {
+  id             String    @id @default(cuid())
+  tenantId       String
+  jobId          String
+  invoiceNumber  String    @unique
+  type           String    @default("STANDARD") // STANDARD, PROGRESS, FINAL
+  lineItems      Json[]
+  subtotal       Float
+  tax            Float
+  total          Float
+  amountPaid     Float     @default(0)
+  balance        Float
+  status         String    @default("DRAFT") // DRAFT, SENT, PARTIAL, PAID, OVERDUE
+  dueDate        DateTime?
+  sentAt         DateTime?
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job      Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  tenantId      String
+  invoiceId     String
+  amount        Float
+  method        String // CASH, CHECK, CREDIT_CARD, ACH, OTHER
+  reference     String?
+  notes         String?
+  processedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     Json?
+  website     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId])
+  @@map("vendors")
+}
+
+model PurchaseOrder {
+  id            String    @id @default(cuid())
+  tenantId      String
+  vendorId      String
+  poNumber      String    @unique
+  lineItems     Json[]
+  subtotal      Float
+  tax           Float
+  total         Float
+  status        String    @default("PENDING") // PENDING, ORDERED, RECEIVED, CANCELLED
+  orderedAt     DateTime?
+  receivedAt    DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([vendorId])
+  @@map("purchase_orders")
+}
+
+// ==================== STORM & TERRITORY MODELS ====================
+
+model StormEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  type        String // HAIL, WIND, TORNADO, HURRICANE, OTHER
+  date        DateTime
+  location    Json // GeoJSON or coordinates
+  severity    String // LOW, MEDIUM, HIGH, SEVERE
+  affectedZips String[]
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  Lead[]
+
+  @@index([tenantId])
+  @@index([date])
+  @@map("storm_events")
+}
+
+// ==================== AUTOMATION MODELS ====================
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  trigger     Json // Event type and conditions
+  conditions  Json? // Additional filters
+  actions     Json[] // Actions to perform
+  isActive    Boolean  @default(true)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("automation_rules")
+}
+
+model AIActionLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  input      Json
+  output     Json?
+  status     String // PENDING, COMPLETED, FAILED, CANCELLED
+  error      String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("ai_action_logs")
+}
+
+// ==================== AUDIT & LOGGING ====================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
