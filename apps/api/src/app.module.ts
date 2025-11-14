@@ -20,6 +20,8 @@ import { SmsModule } from './modules/sms/sms.module';
 import { EmailModule } from './modules/email/email.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { AutomationModule } from './modules/automation/automation.module';
 
 @Module({
   imports: [
@@ -57,6 +59,10 @@ import { MessagingModule } from './modules/messaging/messaging.module';
     EmailModule,
     NotificationsModule,
     MessagingModule,
+
+    // Scheduling & Automation
+    CalendarModule,
+    AutomationModule,
   ],
   providers: [
     {

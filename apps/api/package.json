@@ -44,7 +44,8 @@
     "@sendgrid/mail": "^8.1.0",
     "@nestjs/websockets": "^10.2.10",
     "@nestjs/platform-socket.io": "^10.2.10",
-    "socket.io": "^4.6.1"
+    "socket.io": "^4.6.1",
+    "googleapis": "^129.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.2.1",
