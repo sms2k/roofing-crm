@@ -1,0 +1,384 @@
+// Additional schema for Phase 2 features
+// Append this to the main schema.prisma file
+
+// ==================== VOICE CALLS ====================
+
+model Call {
+  id            String    @id @default(cuid())
+  tenantId      String
+  phoneNumber   String
+  direction     String    // INBOUND, OUTBOUND
+  duration      Int?      // seconds
+  recording     String?   // URL to recording
+  transcription String?   // Full text
+  summary       String?   // AI-generated
+  sentiment     String?   // POSITIVE, NEUTRAL, NEGATIVE
+  leadId        String?
+  jobId         String?
+  contactId     String?
+  outcome       String?   // APPOINTMENT_BOOKED, VOICEMAIL, NO_ANSWER, etc.
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead    Lead?    @relation(fields: [leadId], references: [id])
+  job     Job?     @relation(fields: [jobId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([jobId])
+  @@index([createdAt])
+  @@map("calls")
+}
+
+// ==================== MESSAGING ====================
+
+model Channel {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  type      String    // DIRECT, GROUP, TEAM
+  memberIds String[]  // User IDs
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([tenantId])
+  @@map("channels")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  tenantId    String
+  channelId   String?
+  fromUserId  String?
+  toUserId    String?
+  content     String
+  messageType String   @default("TEXT") // TEXT, IMAGE, FILE, SYSTEM
+  attachments Json[]   @default([])
+  readBy      String[] // User IDs who read it
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channel Channel? @relation(fields: [channelId], references: [id])
+  from    User?    @relation("SentMessages", fields: [fromUserId], references: [id])
+  to      User?    @relation("ReceivedMessages", fields: [toUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([channelId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ==================== SMS ====================
+
+model SmsMessage {
+  id          String    @id @default(cuid())
+  tenantId    String
+  from        String    // Phone number
+  to          String    // Phone number
+  body        String
+  direction   String    // INBOUND, OUTBOUND
+  status      String    // QUEUED, SENT, DELIVERED, FAILED
+  twilioSid   String?   @unique
+  leadId      String?
+  jobId       String?
+  contactId   String?
+  metadata    Json?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead    Lead?    @relation(fields: [leadId], references: [id])
+  job     Job?     @relation(fields: [jobId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([to])
+  @@index([from])
+  @@index([leadId])
+  @@index([jobId])
+  @@map("sms_messages")
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id         String    @id @default(cuid())
+  tenantId   String
+  userId     String
+  type       String    // LEAD_ASSIGNED, MESSAGE_RECEIVED, TASK_DUE, etc.
+  title      String
+  message    String
+  actionUrl  String?
+  metadata   Json?
+  channels   String[]  // IN_APP, EMAIL, SMS, PUSH
+  read       Boolean   @default(false)
+  readAt     DateTime?
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  email     Boolean @default(true)
+  sms       Boolean @default(true)
+  push      Boolean @default(true)
+  inApp     Boolean @default(true)
+  quietFrom String? // HH:mm
+  quietTo   String? // HH:mm
+  settings  Json?   // Per-notification-type preferences
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ==================== CALENDAR ====================
+
+model CalendarSync {
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String    // GOOGLE, OUTLOOK
+  calendarId   String
+  calendarName String?
+  accessToken  String // @encrypted in production
+  refreshToken String // @encrypted in production
+  tokenExpiry  DateTime?
+  syncEnabled  Boolean   @default(true)
+  lastSyncAt   DateTime?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, calendarId])
+  @@index([userId])
+  @@map("calendar_syncs")
+}
+
+model Appointment {
+  id          String    @id @default(cuid())
+  tenantId    String
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  type        String    // INSPECTION, ESTIMATE, CONSULTATION, INSTALLATION
+  status      String    @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED
+  leadId      String?
+  jobId       String?
+  assignedTo  String[]  // User IDs
+  attendees   Json[]    // External attendees
+  reminders   Json[]    // Reminder configuration
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id])
+  job    Job?   @relation(fields: [jobId], references: [id])
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([jobId])
+  @@index([startTime])
+  @@index([status])
+  @@map("appointments")
+}
+
+// ==================== CLIENT PORTAL ====================
+
+model ClientPortal {
+  id          String    @id @default(cuid())
+  tenantId    String
+  jobId       String    @unique
+  token       String    @unique
+  password    String?   // Optional password protection (hashed)
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  accessLog   Json[]    @default([])
+  permissions Json?     // What sections are visible
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([token])
+  @@map("client_portals")
+}
+
+model PortalDocument {
+  id          String    @id @default(cuid())
+  portalId    String
+  documentType String   // ESTIMATE, CONTRACT, INVOICE, INSURANCE, OTHER
+  title       String
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  status      String    @default("PENDING") // PENDING, VIEWED, SIGNED, APPROVED
+  signedAt    DateTime?
+  signedBy    String?
+  signature   String?   // Signature data
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  portal ClientPortal @relation(fields: [portalId], references: [id], onDelete: Cascade)
+
+  @@index([portalId])
+  @@index([documentType])
+  @@map("portal_documents")
+}
+
+// ==================== AUTOMATION ====================
+
+model Workflow {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  trigger     Json      // Trigger configuration
+  conditions  Json[]    @default([])
+  actions     Json[]    @default([])
+  isActive    Boolean   @default(true)
+  createdBy   String
+  lastRunAt   DateTime?
+  runCount    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator    User                 @relation(fields: [createdBy], references: [id])
+  executions WorkflowExecution[]
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("workflows")
+}
+
+model WorkflowExecution {
+  id          String    @id @default(cuid())
+  workflowId  String
+  entityType  String    // LEAD, JOB, etc.
+  entityId    String
+  status      String    // PENDING, RUNNING, COMPLETED, FAILED
+  error       String?
+  logs        Json[]    @default([])
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("workflow_executions")
+}
+
+// ==================== EMAIL ====================
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  subject     String
+  htmlBody    String
+  textBody    String?
+  variables   String[] // Available variables for this template
+  category    String?  // TRANSACTIONAL, MARKETING, OPERATIONAL
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([category])
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id          String    @id @default(cuid())
+  tenantId    String
+  to          String[]
+  from        String
+  subject     String
+  body        String
+  templateId  String?
+  status      String    // QUEUED, SENT, DELIVERED, BOUNCED, FAILED
+  provider    String?   // SENDGRID, AWS_SES, etc.
+  providerMsgId String?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  bouncedAt   DateTime?
+  metadata    Json?
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+// Update existing models with new relations
+// Add to User model:
+// sentMessages        Message[] @relation("SentMessages")
+// receivedMessages    Message[] @relation("ReceivedMessages")
+// calendarSyncs       CalendarSync[]
+// notificationPrefs   NotificationPreference?
+// notifications       Notification[]
+// createdWorkflows    Workflow[]
+
+// Add to Tenant model:
+// channels            Channel[]
+// messages            Message[]
+// smsMessages         SmsMessage[]
+// notifications       Notification[]
+// appointments        Appointment[]
+// clientPortals       ClientPortal[]
+// workflows           Workflow[]
+// emailTemplates      EmailTemplate[]
+// emailLogs           EmailLog[]
+// calls               Call[]
+
+// Add to Lead model:
+// smsMessages         SmsMessage[]
+// calls               Call[]
+// appointments        Appointment[]
+
+// Add to Job model:
+// smsMessages         SmsMessage[]
+// calls               Call[]
+// appointments        Appointment[]
+// portal              ClientPortal?
+
+// Add to Contact model:
+// smsMessages         SmsMessage[]
+// calls               Call[]

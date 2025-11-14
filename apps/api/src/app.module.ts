@@ -15,6 +15,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { HealthModule } from './modules/health/health.module';
+import { AIModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -43,6 +44,9 @@ import { HealthModule } from './modules/health/health.module';
     JobsModule,
     TasksModule,
     NotesModule,
+
+    // AI & Advanced Features
+    AIModule,
   ],
   providers: [
     {
