@@ -22,6 +22,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { AutomationModule } from './modules/automation/automation.module';
+import { AiSalesCoachModule } from './modules/ai-sales-coach/ai-sales-coach.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AutomationModule } from './modules/automation/automation.module';
 
     // AI & Advanced Features
     AIModule,
+    AiSalesCoachModule,
 
     // Communication
     SmsModule,
