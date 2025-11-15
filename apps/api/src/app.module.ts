@@ -27,6 +27,7 @@ import { AiProductionManagerModule } from './modules/ai-production-manager/ai-pr
 import { AiSalesBotModule } from './modules/ai-sales-bot/ai-sales-bot.module';
 import { DroneModule } from './modules/drone/drone.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     // Advanced Features
     DroneModule,
     DashboardModule,
+    MarketplaceModule,
   ],
   providers: [
     {
