@@ -24,6 +24,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { AiSalesCoachModule } from './modules/ai-sales-coach/ai-sales-coach.module';
 import { AiProductionManagerModule } from './modules/ai-production-manager/ai-production-manager.module';
+import { AiSalesBotModule } from './modules/ai-sales-bot/ai-sales-bot.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { AiProductionManagerModule } from './modules/ai-production-manager/ai-pr
     AIModule,
     AiSalesCoachModule,
     AiProductionManagerModule,
+    AiSalesBotModule,
 
     // Communication
     SmsModule,
