@@ -25,6 +25,7 @@ import { AutomationModule } from './modules/automation/automation.module';
 import { AiSalesCoachModule } from './modules/ai-sales-coach/ai-sales-coach.module';
 import { AiProductionManagerModule } from './modules/ai-production-manager/ai-production-manager.module';
 import { AiSalesBotModule } from './modules/ai-sales-bot/ai-sales-bot.module';
+import { DroneModule } from './modules/drone/drone.module';
 
 @Module({
   imports: [
@@ -69,6 +70,9 @@ import { AiSalesBotModule } from './modules/ai-sales-bot/ai-sales-bot.module';
     // Scheduling & Automation
     CalendarModule,
     AutomationModule,
+
+    // Advanced Features
+    DroneModule,
   ],
   providers: [
     {
