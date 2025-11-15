@@ -23,6 +23,7 @@ import { MessagingModule } from './modules/messaging/messaging.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { AiSalesCoachModule } from './modules/ai-sales-coach/ai-sales-coach.module';
+import { AiProductionManagerModule } from './modules/ai-production-manager/ai-production-manager.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AiSalesCoachModule } from './modules/ai-sales-coach/ai-sales-coach.modu
     // AI & Advanced Features
     AIModule,
     AiSalesCoachModule,
+    AiProductionManagerModule,
 
     // Communication
     SmsModule,
