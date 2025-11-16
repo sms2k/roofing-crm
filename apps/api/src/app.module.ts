@@ -31,6 +31,7 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { TemplateLibraryModule } from './modules/template-library/template-library.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { QuickBooksModule } from './modules/quickbooks/quickbooks.module';
+import { CustomerPortalModule } from './modules/customer-portal/customer-portal.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { QuickBooksModule } from './modules/quickbooks/quickbooks.module';
     TemplateLibraryModule,
     AnalyticsModule,
     QuickBooksModule,
+    CustomerPortalModule,
   ],
   providers: [
     {
