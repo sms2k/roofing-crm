@@ -29,6 +29,7 @@ import { DroneModule } from './modules/drone/drone.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { TemplateLibraryModule } from './modules/template-library/template-library.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { TemplateLibraryModule } from './modules/template-library/template-libra
     DashboardModule,
     MarketplaceModule,
     TemplateLibraryModule,
+    AnalyticsModule,
   ],
   providers: [
     {
