@@ -30,6 +30,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { TemplateLibraryModule } from './modules/template-library/template-library.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { QuickBooksModule } from './modules/quickbooks/quickbooks.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     MarketplaceModule,
     TemplateLibraryModule,
     AnalyticsModule,
+    QuickBooksModule,
   ],
   providers: [
     {
