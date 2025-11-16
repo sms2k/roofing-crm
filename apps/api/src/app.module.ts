@@ -32,6 +32,7 @@ import { TemplateLibraryModule } from './modules/template-library/template-libra
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { QuickBooksModule } from './modules/quickbooks/quickbooks.module';
 import { CustomerPortalModule } from './modules/customer-portal/customer-portal.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { CustomerPortalModule } from './modules/customer-portal/customer-portal.
     AnalyticsModule,
     QuickBooksModule,
     CustomerPortalModule,
+    DocumentsModule,
   ],
   providers: [
     {
