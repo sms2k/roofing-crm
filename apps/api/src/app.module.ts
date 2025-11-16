@@ -28,6 +28,7 @@ import { AiSalesBotModule } from './modules/ai-sales-bot/ai-sales-bot.module';
 import { DroneModule } from './modules/drone/drone.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { TemplateLibraryModule } from './modules/template-library/template-library.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
     DroneModule,
     DashboardModule,
     MarketplaceModule,
+    TemplateLibraryModule,
   ],
   providers: [
     {
